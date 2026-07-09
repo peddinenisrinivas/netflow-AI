@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width,initial-scale=1.0" name="viewport"/>
+<title>Model Training | NetFlow AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>tailwind.config={darkMode:"class",theme:{extend:{colors:{"primary":"#259df4","background-light":"#f5f7f8","background-dark":"#101a22"},fontFamily:{"display":["Space Grotesk"]}}}}</script>
+<style>
+body{font-family:'Space Grotesk',sans-serif}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}.fade-in{animation:fadeIn .35s ease both}
+.card-hover{transition:transform .18s,box-shadow .18s}.card-hover:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(37,157,244,.12)}
+.btn-p{transition:background .15s,transform .1s,box-shadow .15s}.btn-p:hover{box-shadow:0 4px 16px rgba(37,157,244,.3)}.btn-p:active{transform:scale(.97)}.btn-p:disabled{opacity:.45;pointer-events:none}
+@keyframes barGrow{from{height:2px}to{height:var(--bh)}}.bar-anim{animation:barGrow .55s ease both}
+</style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
+<div class="flex h-screen overflow-hidden">
+
+<aside class="w-64 border-r border-slate-200 dark:border-slate-800 bg-background-light dark:bg-background-dark flex flex-col flex-shrink-0">
+  <div class="p-6">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="p-2 bg-primary rounded-lg text-white"><span class="material-symbols-outlined">hub</span></div>
+      <div><h1 class="text-lg font-bold leading-none">NetFlow AI</h1><p class="text-xs text-slate-500">Bandwidth Optimizer</p></div>
+    </div>
+    <nav class="space-y-1">
+      <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">dashboard</span><span>Dashboard</span></a>
+      <a href="DataIngestion.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">upload_file</span><span>Data Ingestion</span></a>
+      <a href="Model_training.html" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20 border-l-4 border-primary text-primary font-semibold"><span class="material-symbols-outlined">model_training</span><span>Model Training</span></a>
+      <a href="ModelEvaluation.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">analytics</span><span>Evaluation</span></a>
+      <a href="BandwidthPrediction.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">monitoring</span><span>Predictions</span></a>
+    </nav>
+  </div>
+  <div class="mt-auto p-6 border-t border-slate-200 dark:border-slate-800">
+    <div class="flex items-center gap-2 px-3 py-2 text-xs font-bold">
+      <span class="w-2 h-2 rounded-full bg-slate-400" id="status-dot"></span>
+      <span id="status-text" class="text-slate-400">Checking...</span>
+    </div>
+  </div>
+</aside>
+
+<main class="flex-1 overflow-y-auto">
+  <header class="sticky top-0 z-10 px-8 py-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+    <div><h2 class="text-2xl font-bold">Model Training</h2><p class="text-sm text-slate-500">ML Classifier + RL Bandwidth Agent</p></div>
+    <button onclick="checkModelInfo()" class="btn-p flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+      <span class="material-symbols-outlined text-sm">info</span> Model Info
+    </button>
+  </header>
+
+  <div id="toast" class="hidden fixed top-6 right-6 z-50 px-5 py-3 rounded-xl text-white text-sm font-semibold shadow-xl flex items-center fade-in"></div>
+
+  <div class="p-8 max-w-7xl mx-auto space-y-8">
+
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+
+      <!-- ML Classifier Config -->
+      <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in">
+        <h3 class="text-lg font-bold mb-5 flex items-center gap-2"><span class="material-symbols-outlined text-primary">tune</span> ML Classifier Configuration</h3>
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1">Model Type</label>
+              <select id="model-type" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
+                <option>RandomForest</option><option>GradientBoosting</option><option>ExtraTrees</option><option>SVM</option><option>LogisticRegression</option>
+              </select></div>
+            <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1">Epochs</label>
+              <input id="epochs" type="number" value="50" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"/></div>
+            <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1">Learning Rate</label>
+              <input id="lr" type="number" value="0.05" step="0.01" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"/></div>
+            <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1">Batch Size</label>
+              <select id="batch" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
+                <option>32</option><option selected>64</option><option>128</option></select></div>
+          </div>
+          <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1">Training Data</label>
+            <select id="train-file" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
+              <option value="">Synthetic data (auto-generated)</option></select></div>
+          <div class="flex gap-3 pt-2">
+            <button id="btn-train" onclick="startTraining()" class="btn-p flex-1 bg-primary text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2"><span class="material-symbols-outlined">play_arrow</span>Start Training</button>
+            <button onclick="stopTraining()" class="px-5 bg-slate-100 dark:bg-slate-800 font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Stop</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RL Agent Config -->
+      <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in" style="animation-delay:.08s">
+        <h3 class="text-lg font-bold mb-5 flex items-center gap-2"><span class="material-symbols-outlined text-emerald-400">smart_toy</span> RL Agent Configuration (Q-Learning)</h3>
+        <div class="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20 text-xs text-emerald-400 mb-4">
+          <strong>Algorithm:</strong> Tabular Q-Learning — no deep learning.<br/>
+          States: traffic class × utilisation bucket. Actions: increase / maintain / decrease / throttle.
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1">Episodes</label>
+            <input id="rl-episodes" type="number" value="300" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1">Max BW (Mbps)</label>
+            <input id="rl-maxbw" type="number" value="1000" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1">Alpha (LR)</label>
+            <input id="rl-alpha" type="number" value="0.1" step="0.01" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label class="text-xs font-semibold text-slate-500 uppercase block mb-1">Gamma (Discount)</label>
+            <input id="rl-gamma" type="number" value="0.95" step="0.01" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"/></div>
+        </div>
+        <button id="btn-rl" onclick="trainRL()" class="btn-p w-full bg-emerald-600 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined">model_training</span> Train RL Agent
+        </button>
+        <div id="rl-status-bar" class="hidden mt-4">
+          <div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Training episodes...</span><span class="text-emerald-400 font-bold" id="rl-ep-text">0/0</span></div>
+          <div class="h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden"><div class="h-full bg-emerald-500 rounded-full transition-all" id="rl-prog-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Training Progress -->
+    <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in" style="animation-delay:.14s">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold flex items-center gap-2"><span class="material-symbols-outlined text-primary">show_chart</span> Training Progress</h3>
+        <div id="training-badge" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-500">
+          <span class="w-2 h-2 rounded-full bg-slate-400"></span> Idle
+        </div>
+      </div>
+      <div class="h-48 flex items-end gap-0.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3" id="acc-chart">
+        <div class="flex-1 bg-primary/30 rounded-t bar-anim" style="--bh:20%;height:20%"></div>
+        <div class="flex-1 bg-primary/40 rounded-t bar-anim" style="--bh:35%;height:35%;animation-delay:.06s"></div>
+        <div class="flex-1 bg-primary/55 rounded-t bar-anim" style="--bh:55%;height:55%;animation-delay:.12s"></div>
+        <div class="flex-1 bg-primary/70 rounded-t bar-anim" style="--bh:70%;height:70%;animation-delay:.18s"></div>
+        <div class="flex-1 bg-primary rounded-t bar-anim" style="--bh:85%;height:85%;animation-delay:.24s"></div>
+      </div>
+      <div class="grid grid-cols-4 gap-4 mt-4">
+        <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg text-center">
+          <p class="text-xs text-slate-500 uppercase mb-1">Accuracy</p>
+          <p class="text-xl font-bold text-primary" id="acc-val">—</p>
+          <p class="text-[10px]" id="acc-label"></p>
+        </div>
+        <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg text-center"><p class="text-xs text-slate-500 uppercase mb-1">Loss</p><p class="text-xl font-bold text-slate-400" id="loss-val">—</p></div>
+        <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg text-center"><p class="text-xs text-slate-500 uppercase mb-1">Epoch</p><p class="text-xl font-bold" id="epoch-val">—</p></div>
+        <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg text-center"><p class="text-xs text-slate-500 uppercase mb-1">Status</p><p class="text-sm font-bold" id="status-val">—</p></div>
+      </div>
+    </div>
+
+    <!-- Learned RL Policy Table -->
+    <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in" style="animation-delay:.2s">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold flex items-center gap-2"><span class="material-symbols-outlined text-emerald-400">table_chart</span> Learned RL Policy (Q-Table)</h3>
+        <button onclick="loadPolicy()" class="btn-p text-sm text-primary font-bold hover:underline flex items-center gap-1"><span class="material-symbols-outlined text-sm">refresh</span>Refresh</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead><tr class="text-xs text-slate-500 uppercase border-b border-slate-200 dark:border-slate-800">
+            <th class="pb-3 px-2">State</th><th class="pb-3 px-2">Traffic Class</th><th class="pb-3 px-2">Util Bucket</th>
+            <th class="pb-3 px-2">Best Action</th><th class="pb-3 px-2">increase Q</th><th class="pb-3 px-2">maintain Q</th><th class="pb-3 px-2">decrease Q</th><th class="pb-3 px-2">throttle Q</th>
+          </tr></thead>
+          <tbody id="policy-tbody" class="divide-y divide-slate-100 dark:divide-slate-800">
+            <tr><td colspan="8" class="px-2 py-8 text-center text-slate-400">Train the RL agent to see the learned policy here.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Model Info -->
+    <div id="model-info-panel" class="hidden card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in">
+      <h3 class="text-lg font-bold mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-primary">info</span> Saved Model Info</h3>
+      <div id="model-info-content" class="text-sm text-slate-500"></div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<script>
+const API="http://localhost:8000/api";
+let trainingPoll=null,rlPoll=null;
+
+// sessionStorage persistence
+const SS={
+  get:k=>{try{return JSON.parse(sessionStorage.getItem(k))}catch{return null}},
+  set:(k,v)=>{try{sessionStorage.setItem(k,JSON.stringify(v))}catch{}}
+};
+
+function restoreAll(){
+  const t=SS.get('training_results');
+  if(t){
+    if(t.accuracy){
+      document.getElementById('acc-val').textContent=(t.accuracy*100).toFixed(1)+'%';
+      document.getElementById('acc-label').textContent=t.isReal?'Real accuracy ✓':'Simulated';
+      document.getElementById('acc-label').className=t.isReal?'text-[10px] text-emerald-400':'text-[10px] text-amber-400';
+    }
+    if(t.loss)document.getElementById('loss-val').textContent=t.loss;
+    if(t.epoch)document.getElementById('epoch-val').textContent=t.epoch;
+    if(t.status)document.getElementById('status-val').textContent=t.status;
+    if(t.history&&t.history.length>1)renderChart(t.history);
+    if(t.badge)setBadge(t.badge);
+  }
+}
+
+const ICONS={info:'ℹ️',success:'✅',error:'❌',warning:'⚠️'};
+function toast(msg,type="info"){
+  const t=document.getElementById("toast"),c={info:"bg-primary",success:"bg-emerald-600",error:"bg-rose-600",warning:"bg-amber-500"};
+  t.className=`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl text-white text-sm font-semibold shadow-xl flex items-center fade-in ${c[type]||c.info}`;
+  t.innerHTML=`<span style="margin-right:8px">${ICONS[type]||'ℹ️'}</span>${msg}`;
+  t.classList.remove("hidden");setTimeout(()=>t.classList.add("hidden"),3500);
+}
+
+async function checkHealth(){
+  try{const r=await fetch(`${API}/health`);if(r.ok){document.getElementById("status-dot").className="w-2 h-2 rounded-full bg-emerald-400";document.getElementById("status-text").textContent="API Online";document.getElementById("status-text").className="text-emerald-400 text-xs font-bold";loadFiles();}}
+  catch{document.getElementById("status-dot").className="w-2 h-2 rounded-full bg-rose-500";document.getElementById("status-text").textContent="API Offline";document.getElementById("status-text").className="text-rose-400 text-xs font-bold";}
+}
+
+async function loadFiles(){
+  try{const r=await fetch(`${API}/ingestion/files`),files=await r.json();
+    const sel=document.getElementById("train-file");
+    sel.innerHTML='<option value="">Synthetic data</option>';
+    files.forEach(f=>sel.innerHTML+=`<option value="${f.id}">${f.filename} (${f.flow_count} user sessions)</option>`);
+  }catch{}
+}
+
+async function startTraining(){
+  const btn=document.getElementById('btn-train');
+  btn.disabled=true;btn.innerHTML='<span class="material-symbols-outlined">refresh</span> Training...';
+  const cfg={learning_rate:parseFloat(document.getElementById("lr").value),epochs:parseInt(document.getElementById("epochs").value),
+    batch_size:parseInt(document.getElementById("batch").value),optimizer:"Adam",
+    model_type:document.getElementById("model-type").value,file_id:document.getElementById("train-file").value||null};
+  try{
+    const r=await fetch(`${API}/training/start`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});
+    if(!r.ok)throw new Error((await r.json()).detail);
+    toast("Training started!","success");setBadge("running");
+    // label as simulated while in progress
+    document.getElementById('acc-label').textContent='Simulated';
+    document.getElementById('acc-label').className='text-[10px] text-amber-400';
+    trainingPoll=setInterval(pollTraining,600);
+  }catch(e){toast(e.message,"error");btn.disabled=false;btn.innerHTML='<span class="material-symbols-outlined">play_arrow</span>Start Training';}
+}
+
+async function stopTraining(){
+  try{await fetch(`${API}/training/stop`,{method:"POST"});clearInterval(trainingPoll);setBadge("stopped");toast("Stopped","info");}
+  catch(e){toast(e.message,"error");}
+  finally{const btn=document.getElementById('btn-train');btn.disabled=false;btn.innerHTML='<span class="material-symbols-outlined">play_arrow</span>Start Training';}
+}
+
+async function pollTraining(){
+  try{
+    const d=await(await fetch(`${API}/training/status`)).json();
+    const acc=d.current_accuracy?(d.current_accuracy*100).toFixed(1)+'%':'—';
+    document.getElementById("acc-val").textContent=acc;
+    document.getElementById("loss-val").textContent=d.current_loss?d.current_loss.toFixed(4):'—';
+    document.getElementById("epoch-val").textContent=`${d.epoch}/${d.total_epochs}`;
+    document.getElementById("status-val").textContent=d.status;
+    setBadge(d.status);
+    if(d.accuracy_history&&d.accuracy_history.length>1)renderChart(d.accuracy_history);
+    // persist simulated values
+    SS.set('training_results',{accuracy:d.current_accuracy,loss:d.current_loss?d.current_loss.toFixed(4):null,
+      epoch:`${d.epoch}/${d.total_epochs}`,status:d.status,history:d.accuracy_history,isReal:false,badge:d.status});
+    if(["complete","error","stopped"].includes(d.status)){
+      clearInterval(trainingPoll);
+      const btn=document.getElementById('btn-train');
+      btn.disabled=false;btn.innerHTML='<span class="material-symbols-outlined">play_arrow</span>Start Training';
+      if(d.status==="complete"){toast("Training complete! Fetching real accuracy...","success");await fetchRealAccuracy();}
+    }
+  }catch{}
+}
+
+async function fetchRealAccuracy(){
+  try{
+    const r=await fetch(`${API}/training/model-info`);
+    const d=await r.json();
+    if(d.is_trained&&d.accuracy!=null){
+      const pct=(d.accuracy*100).toFixed(1)+'%';
+      document.getElementById('acc-val').textContent=pct;
+      document.getElementById('acc-label').textContent='Real accuracy ✓';
+      document.getElementById('acc-label').className='text-[10px] text-emerald-400';
+      const saved=SS.get('training_results')||{};
+      SS.set('training_results',{...saved,accuracy:d.accuracy,isReal:true});
+      toast(`Real sklearn accuracy: ${pct}`,"success");
+    }
+  }catch{}
+}
+
+function setBadge(s){
+  const el=document.getElementById("training-badge");
+  const cm={running:"bg-primary/20 text-primary",complete:"bg-emerald-500/20 text-emerald-400",error:"bg-rose-500/20 text-rose-400",idle:"bg-slate-200 dark:bg-slate-800 text-slate-500",stopped:"bg-amber-500/20 text-amber-400"};
+  const dm={running:"bg-primary animate-pulse",complete:"bg-emerald-400",error:"bg-rose-400",idle:"bg-slate-400",stopped:"bg-amber-400"};
+  el.className=`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${cm[s]||cm.idle}`;
+  el.innerHTML=`<span class="w-2 h-2 rounded-full ${dm[s]||dm.idle}"></span>${s.charAt(0).toUpperCase()+s.slice(1)}`;
+}
+
+function renderChart(h){
+  const c=document.getElementById("acc-chart"),max=Math.max(...h,0.01);
+  c.innerHTML=h.slice(-30).map((v,i)=>`<div class="flex-1 bg-primary rounded-t transition-all" style="height:${Math.round(v/max*100)}%;animation-delay:${i*0.025}s"></div>`).join("");
+}
+
+async function trainRL(){
+  const btn=document.getElementById('btn-rl');
+  btn.disabled=true;btn.innerHTML='<span class="material-symbols-outlined">refresh</span> Training RL...';
+  const cfg={episodes:parseInt(document.getElementById("rl-episodes").value),max_bw_mbps:parseFloat(document.getElementById("rl-maxbw").value),
+    alpha:parseFloat(document.getElementById("rl-alpha").value),gamma:parseFloat(document.getElementById("rl-gamma").value),
+    file_id:document.getElementById("train-file").value||null};
+  try{
+    const r=await fetch(`${API}/rl/train`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});
+    if(!r.ok)throw new Error((await r.json()).detail);
+    toast("RL training started!","success");
+    document.getElementById("rl-status-bar").classList.remove("hidden");
+    rlPoll=setInterval(()=>pollRL(cfg.episodes),800);
+  }catch(e){toast(e.message,"error");btn.disabled=false;btn.innerHTML='<span class="material-symbols-outlined">model_training</span> Train RL Agent';}
+}
+
+async function pollRL(totalEp){
+  try{
+    const d=await(await fetch(`${API}/rl/status`)).json();
+    const ep=d.episodes_completed,tot=d.total_episodes||totalEp;
+    document.getElementById("rl-ep-text").textContent=`${ep}/${tot} · ε=${d.epsilon}`;
+    document.getElementById("rl-prog-bar").style.width=`${Math.round(ep/tot*100)}%`;
+    if(d.status==="complete"){
+      clearInterval(rlPoll);
+      const btn=document.getElementById('btn-rl');
+      btn.disabled=false;btn.innerHTML='<span class="material-symbols-outlined">model_training</span> Train RL Agent';
+      toast(`RL Agent trained! ${d.states_learned} states learned.`,"success");loadPolicy();
+    }else if(d.status==="error"){
+      clearInterval(rlPoll);toast("RL error: "+d.error,"error");
+      const btn=document.getElementById('btn-rl');btn.disabled=false;btn.innerHTML='<span class="material-symbols-outlined">model_training</span> Train RL Agent';
+    }
+  }catch{}
+}
+
+const AC_COLORS={increase:"text-emerald-400",maintain:"text-primary",decrease:"text-amber-400",throttle:"text-rose-400"};
+const AC_BG={increase:"bg-emerald-500/10",maintain:"bg-primary/10",decrease:"bg-amber-500/10",throttle:"bg-rose-500/10"};
+
+async function loadPolicy(){
+  try{
+    const r=await fetch(`${API}/rl/policy`);if(!r.ok)return;
+    const d=await r.json();
+    document.getElementById("policy-tbody").innerHTML=d.policy.map(p=>`<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+      <td class="px-2 py-3 font-mono text-xs">${p.state}</td>
+      <td class="px-2 py-3">${p.traffic_class}</td>
+      <td class="px-2 py-3"><span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 dark:bg-slate-800">${p.util_bucket}</span></td>
+      <td class="px-2 py-3"><span class="px-2 py-0.5 rounded text-xs font-bold ${AC_BG[p.best_action]||''} ${AC_COLORS[p.best_action]||''}">${p.best_action}</span></td>
+      <td class="px-2 py-3 text-xs text-slate-500">${(p.q_values.increase||0).toFixed(3)}</td>
+      <td class="px-2 py-3 text-xs text-slate-500">${(p.q_values.maintain||0).toFixed(3)}</td>
+      <td class="px-2 py-3 text-xs text-slate-500">${(p.q_values.decrease||0).toFixed(3)}</td>
+      <td class="px-2 py-3 text-xs text-slate-500">${(p.q_values.throttle||0).toFixed(3)}</td>
+    </tr>`).join("");
+  }catch{}
+}
+
+async function checkModelInfo(){
+  try{
+    const r=await fetch(`${API}/training/model-info`);
+    const d=await r.json();
+    const panel=document.getElementById("model-info-panel");panel.classList.remove("hidden");
+    document.getElementById("model-info-content").innerHTML=d.is_trained
+      ?`<div class="grid grid-cols-3 gap-4">
+          <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg"><p class="text-xs text-slate-400 uppercase">Model</p><p class="font-bold">${d.model_type}</p></div>
+          <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg"><p class="text-xs text-slate-400 uppercase">Sklearn Accuracy</p><p class="font-bold text-emerald-400">${d.accuracy!=null?(d.accuracy*100).toFixed(2)+'% ✓':'—'}</p></div>
+          <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg"><p class="text-xs text-slate-400 uppercase">Trained At</p><p class="font-bold text-xs">${new Date(d.trained_at).toLocaleString()}</p></div>
+          <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg"><p class="text-xs text-slate-400 uppercase">Classes</p><p class="font-bold">${d.classes.join(", ")}</p></div>
+          <div class="col-span-2 card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg"><p class="text-xs text-slate-400 uppercase mb-1">Features (${d.feature_names.length})</p><p class="font-mono text-xs text-slate-500">${d.feature_names.join(", ")}</p></div>
+        </div>`
+      :`<p class="text-amber-400">No trained model found. Train a model first.</p>`;
+    panel.scrollIntoView({behavior:"smooth"});
+  }catch(e){toast(e.message,"error");}
+}
+
+checkHealth();
+setInterval(checkHealth,10000);
+restoreAll();
+</script>
+</body>
+</html>

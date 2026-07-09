@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width,initial-scale=1.0" name="viewport"/>
+<title>Bandwidth Predictions | NetFlow AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>tailwind.config={darkMode:"class",theme:{extend:{colors:{"primary":"#259df4","background-light":"#f5f7f8","background-dark":"#101a22"},fontFamily:{"display":["Space Grotesk"]}}}}</script>
+<style>
+body{font-family:'Space Grotesk',sans-serif}
+.custom-scrollbar::-webkit-scrollbar{width:4px}.custom-scrollbar::-webkit-scrollbar-thumb{background:#334155;border-radius:10px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}.fade-in{animation:fadeIn .35s ease both}
+.card-hover{transition:transform .18s,box-shadow .18s}.card-hover:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(37,157,244,.12)}
+.btn-p{transition:background .15s,transform .1s,box-shadow .15s}.btn-p:hover{box-shadow:0 4px 16px rgba(37,157,244,.3)}.btn-p:active{transform:scale(.97)}.btn-p:disabled{opacity:.45;pointer-events:none}
+@keyframes barGrow{from{height:0}to{height:var(--bh)}}.bar-anim{animation:barGrow .45s ease both}
+</style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
+<div class="flex h-screen overflow-hidden">
+
+<aside class="w-64 border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0">
+  <div class="p-6">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="p-2 bg-primary rounded-lg text-white"><span class="material-symbols-outlined">hub</span></div>
+      <div><h1 class="text-lg font-bold leading-none">NetFlow AI</h1><p class="text-xs text-slate-500">Bandwidth Optimizer</p></div>
+    </div>
+    <nav class="space-y-1">
+      <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">dashboard</span><span>Dashboard</span></a>
+      <a href="DataIngestion.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">upload_file</span><span>Data Ingestion</span></a>
+      <a href="Model_training.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">model_training</span><span>Model Training</span></a>
+      <a href="ModelEvaluation.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">analytics</span><span>Evaluation</span></a>
+      <a href="BandwidthPrediction.html" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20 border-l-4 border-primary text-primary font-semibold"><span class="material-symbols-outlined">monitoring</span><span>Predictions</span></a>
+    </nav>
+  </div>
+  <div class="mt-auto p-6 border-t border-slate-200 dark:border-slate-800">
+    <div class="flex items-center gap-2 px-3 py-2 text-xs font-bold">
+      <span class="w-2 h-2 rounded-full bg-slate-400" id="status-dot"></span>
+      <span id="status-text" class="text-slate-400">Checking...</span>
+    </div>
+  </div>
+</aside>
+
+<main class="flex-1 overflow-y-auto custom-scrollbar">
+  <header class="sticky top-0 z-10 flex items-center justify-between px-8 py-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+    <div>
+      <h2 class="text-2xl font-bold">Bandwidth Predictions</h2>
+      <p class="text-sm text-slate-500">Real-time RL allocation decisions + ML traffic classification per user session</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+        <span class="material-symbols-outlined text-sm">group</span>
+        <span id="active-users-count">0</span> Active Users
+      </span>
+      <button id="btn-start" onclick="startStream()" class="btn-p flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg">
+        <span class="material-symbols-outlined text-sm">play_arrow</span> Start Live Stream
+      </button>
+      <button onclick="stopStream()" class="btn-p flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-sm font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+        <span class="material-symbols-outlined text-sm">stop</span> Stop
+      </button>
+    </div>
+  </header>
+
+  <div id="toast" class="hidden fixed top-6 right-6 z-50 px-5 py-3 rounded-xl text-white text-sm font-semibold shadow-xl flex items-center fade-in"></div>
+
+  <div class="p-8 max-w-7xl mx-auto space-y-8">
+
+    <!-- Live KPI Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 fade-in">
+      <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+        <p class="text-xs text-slate-500 uppercase mb-1">Current Bandwidth</p>
+        <p class="text-3xl font-bold text-primary" id="kpi-bw">—</p>
+        <p class="text-xs text-slate-400 mt-1">Mbps predicted</p>
+      </div>
+      <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+        <p class="text-xs text-slate-500 uppercase mb-1">RL Allocated</p>
+        <p class="text-3xl font-bold text-emerald-400" id="kpi-allocated">—</p>
+        <p class="text-xs text-slate-400 mt-1">Mbps by agent</p>
+      </div>
+      <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+        <p class="text-xs text-slate-500 uppercase mb-1">Traffic State</p>
+        <p class="text-2xl font-bold" id="kpi-state">—</p>
+        <p class="text-xs text-slate-400 mt-1">Current class</p>
+      </div>
+      <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+        <p class="text-xs text-slate-500 uppercase mb-1">RL Action</p>
+        <p class="text-2xl font-bold" id="kpi-action">—</p>
+        <p class="text-xs text-slate-400 mt-1">Allocation decision</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+      <!-- Chart -->
+      <div class="xl:col-span-2 card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in" style="animation-delay:.08s">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <p class="text-sm font-bold">Predicted vs Allocated — User Session Bandwidth</p>
+            <p class="text-xs text-slate-400 mt-0.5">Blue = predicted · Green = RL allocated</p>
+          </div>
+          <span id="stream-dot" class="flex items-center gap-2 text-xs font-bold text-slate-400">
+            <span class="w-2 h-2 rounded-full bg-slate-400" id="live-dot"></span> Stopped
+          </span>
+        </div>
+        <div class="relative h-52 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 overflow-hidden">
+          <canvas id="bw-chart" class="w-full h-full"></canvas>
+        </div>
+        <div class="flex gap-6 mt-3 justify-center text-xs text-slate-500">
+          <span class="flex items-center gap-1"><span class="w-3 h-1 bg-primary rounded inline-block"></span>Predicted</span>
+          <span class="flex items-center gap-1"><span class="w-3 h-1 bg-emerald-500 rounded inline-block"></span>RL Allocated</span>
+        </div>
+      </div>
+
+      <!-- Manual Allocate -->
+      <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in" style="animation-delay:.14s">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-primary">tune</span> Manual Allocation Test</h3>
+        <div class="space-y-3">
+          <div><label class="text-xs text-slate-500 uppercase block mb-1">Bytes/sec</label>
+            <input id="in-bps" type="number" value="60000000" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label class="text-xs text-slate-500 uppercase block mb-1">Current Util %</label>
+            <input id="in-util" type="number" value="70" min="0" max="100" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label class="text-xs text-slate-500 uppercase block mb-1">RST Flag (0/1)</label>
+            <input id="in-rst" type="number" value="0" min="0" max="1" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm"/></div>
+          <button id="btn-alloc" onclick="manualAllocate()" class="btn-p w-full bg-primary text-white font-bold py-2 rounded-lg">Get RL Decision</button>
+        </div>
+        <div id="alloc-result" class="hidden mt-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm space-y-2"></div>
+      </div>
+
+    </div>
+
+    <!-- Live User Session Table -->
+    <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden fade-in" style="animation-delay:.2s">
+      <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+        <h3 class="font-bold text-lg flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">person</span>
+          Live User Session Log
+        </h3>
+        <button onclick="clearTable()" class="btn-p text-xs text-slate-400 hover:text-slate-200 font-bold">Clear</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead><tr class="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+            <th class="px-5 py-3">Time</th>
+            <th class="px-5 py-3">User Session</th>
+            <th class="px-5 py-3">Predicted Mbps</th>
+            <th class="px-5 py-3">Traffic Class</th>
+            <th class="px-5 py-3">RL Action</th>
+            <th class="px-5 py-3">Allocated Mbps</th>
+            <th class="px-5 py-3 text-right">Confidence</th>
+          </tr></thead>
+          <tbody id="pred-tbody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+        </table>
+        <p id="pred-empty" class="text-center text-slate-400 text-sm py-10">Click "Start Live Stream" to see real-time user session predictions and RL allocation decisions.</p>
+      </div>
+    </div>
+
+    <!-- RL Reward History -->
+    <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in" style="animation-delay:.26s">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-bold text-lg flex items-center gap-2"><span class="material-symbols-outlined text-emerald-400">trending_up</span> RL Reward History</h3>
+        <button onclick="loadRewardHistory()" class="btn-p text-sm text-primary font-bold hover:underline">Load</button>
+      </div>
+      <div class="h-32 flex items-end gap-0.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3" id="reward-chart">
+        <p class="text-slate-400 text-xs self-center mx-auto">Click Load to see RL training reward history.</p>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<script>
+const API="http://localhost:8000/api";
+let streamES=null;
+const predBw=[],allocBw=[];
+
+const ICONS={info:'ℹ️',success:'✅',error:'❌',warning:'⚠️'};
+function toast(msg,type="info"){
+  const t=document.getElementById("toast"),c={info:"bg-primary",success:"bg-emerald-600",error:"bg-rose-600",warning:"bg-amber-500"};
+  t.className=`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl text-white text-sm font-semibold shadow-xl flex items-center fade-in ${c[type]||c.info}`;
+  t.innerHTML=`<span style="margin-right:8px">${ICONS[type]||'ℹ️'}</span>${msg}`;
+  t.classList.remove("hidden");setTimeout(()=>t.classList.add("hidden"),3500);
+}
+
+function ipToUser(ip){
+  if(!ip)return'User';
+  const p=ip.split('.');
+  return p.length>=4?`User-${p[2]}.${p[3]}`:`User-${ip}`;
+}
+function avatarBadge(ip){
+  const label=ipToUser(ip);
+  const hue=[...ip].reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+  return `<span class="inline-flex items-center gap-1.5">
+    <span class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style="background:hsl(${hue},55%,45%)">${label.slice(-2)}</span>
+    <span class="font-mono text-xs">${label}</span>
+  </span>`;
+}
+
+async function checkHealth(){
+  try{const r=await fetch(`${API}/health`);if(r.ok){document.getElementById("status-dot").className="w-2 h-2 rounded-full bg-emerald-400";document.getElementById("status-text").textContent="API Online";document.getElementById("status-text").className="text-emerald-400 text-xs font-bold";}}
+  catch{document.getElementById("status-dot").className="w-2 h-2 rounded-full bg-rose-500";document.getElementById("status-text").textContent="API Offline";document.getElementById("status-text").className="text-rose-400 text-xs font-bold";}
+}
+
+function startStream(){
+  if(streamES)streamES.close();
+  const btn=document.getElementById('btn-start');
+  btn.disabled=true;btn.innerHTML='<span class="material-symbols-outlined text-sm">radio_button_checked</span> Live';
+  document.getElementById("pred-empty").classList.add("hidden");
+  document.getElementById("live-dot").className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+  document.getElementById("stream-dot").innerHTML='<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span class="text-emerald-400">Live</span>';
+  streamES=new EventSource(`${API}/prediction/stream`);
+  streamES.onmessage=e=>handlePred(JSON.parse(e.data));
+  streamES.onerror=()=>{
+    document.getElementById("stream-dot").innerHTML='<span class="w-2 h-2 rounded-full bg-rose-400"></span><span class="text-rose-400">Error</span>';
+    btn.disabled=false;btn.innerHTML='<span class="material-symbols-outlined text-sm">play_arrow</span> Start Live Stream';
+    toast("Stream error. Is backend running?","error");
+  };
+}
+
+function stopStream(){
+  if(streamES){streamES.close();streamES=null;}
+  document.getElementById("stream-dot").innerHTML='<span class="w-2 h-2 rounded-full bg-slate-400"></span> Stopped';
+  const btn=document.getElementById('btn-start');
+  btn.disabled=false;btn.innerHTML='<span class="material-symbols-outlined text-sm">play_arrow</span> Start Live Stream';
+}
+
+const RL_COLORS={increase:"bg-emerald-500/15 text-emerald-400",maintain:"bg-primary/15 text-primary",decrease:"bg-amber-500/15 text-amber-500",throttle:"bg-rose-500/15 text-rose-400"};
+const ST_COLORS={"Stable":"bg-green-100 dark:bg-green-900/30 text-green-600","Peak Spike":"bg-amber-100 dark:bg-amber-900/30 text-amber-600","Anomaly":"bg-rose-100 dark:bg-rose-900/30 text-rose-600"};
+const KPI_STATE_COLORS={"Stable":"text-emerald-400","Peak Spike":"text-amber-400","Anomaly":"text-rose-400"};
+const KPI_ACTION_COLORS={increase:"text-emerald-400",maintain:"text-primary",decrease:"text-amber-400",throttle:"text-rose-400"};
+
+function handlePred(d){
+  document.getElementById("kpi-bw").textContent=d.predicted_mbps+" Mbps";
+  document.getElementById("kpi-allocated").textContent=d.allocated_mbps!=null?d.allocated_mbps+" Mbps":"—";
+  const stEl=document.getElementById("kpi-state");
+  stEl.className=`text-2xl font-bold ${KPI_STATE_COLORS[d.status]||""}`;
+  stEl.textContent=d.status;
+  const acEl=document.getElementById("kpi-action");
+  acEl.className=`text-2xl font-bold ${KPI_ACTION_COLORS[d.rl_action]||""}`;
+  acEl.textContent=d.rl_action||"—";
+
+  predBw.push(d.predicted_mbps);allocBw.push(d.allocated_mbps||0);
+  if(predBw.length>30){predBw.shift();allocBw.shift();}
+  drawChart();
+  addRow(d);
+}
+
+function drawChart(){
+  const canvas=document.getElementById("bw-chart");
+  const ctx=canvas.getContext("2d");
+  canvas.width=canvas.offsetWidth;canvas.height=canvas.offsetHeight;
+  const w=canvas.width,h=canvas.height,n=predBw.length;
+  if(n<2)return;
+  const maxV=Math.max(...predBw,...allocBw,1);
+  ctx.clearRect(0,0,w,h);
+  ctx.strokeStyle="rgba(100,116,139,0.1)";ctx.lineWidth=1;
+  [0.25,0.5,0.75].forEach(f=>{ctx.beginPath();ctx.moveTo(0,h*f);ctx.lineTo(w,h*f);ctx.stroke();});
+  function drawLine(data,color){
+    ctx.beginPath();ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.lineJoin="round";
+    data.forEach((v,i)=>{const x=i/(n-1)*w,y=h-(v/maxV)*(h*0.85)-h*0.05;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.stroke();
+  }
+  drawLine(predBw,"#259df4");
+  drawLine(allocBw,"#10b981");
+}
+
+function addRow(d){
+  const tbody=document.getElementById("pred-tbody");
+  const tr=document.createElement("tr");
+  tr.className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors fade-in";
+  const rlCls=RL_COLORS[d.rl_action]||'text-slate-400';
+  tr.innerHTML=`
+    <td class="px-5 py-3 text-xs font-mono">${d.timestamp}</td>
+    <td class="px-5 py-3">${avatarBadge(d.src_ip)}</td>
+    <td class="px-5 py-3 font-medium">${d.predicted_mbps}</td>
+    <td class="px-5 py-3"><span class="px-2 py-1 rounded text-xs font-bold ${ST_COLORS[d.status]||''}">${d.status}</span></td>
+    <td class="px-5 py-3"><span class="px-2 py-0.5 rounded text-xs font-bold ${rlCls}">${d.rl_action||'—'}</span></td>
+    <td class="px-5 py-3">${d.allocated_mbps!=null?d.allocated_mbps+' Mbps':'—'}</td>
+    <td class="px-5 py-3 text-right">${(d.confidence*100).toFixed(1)}%</td>`;
+  tbody.prepend(tr);
+  while(tbody.children.length>30)tbody.removeChild(tbody.lastChild);
+  // update active user count
+  const labels=new Set([...tbody.querySelectorAll('td:nth-child(2) span:last-child')].map(s=>s.textContent.trim()));
+  if(labels.size>0)document.getElementById('active-users-count').textContent=labels.size;
+}
+
+function clearTable(){document.getElementById("pred-tbody").innerHTML="";}
+
+async function manualAllocate(){
+  const btn=document.getElementById('btn-alloc');
+  btn.disabled=true;btn.textContent='Getting decision...';
+  const body={bytes_per_second:parseFloat(document.getElementById("in-bps").value),
+    pkts_per_second:100,flag_rst:parseFloat(document.getElementById("in-rst").value),
+    protocol_tcp:1,avg_pkt_size:500,
+    current_util_pct:parseFloat(document.getElementById("in-util").value)};
+  try{
+    const r=await fetch(`${API}/rl/allocate`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    if(!r.ok)throw new Error((await r.json()).detail);
+    const d=await r.json();
+    const rlCls=RL_COLORS[d.action]||'text-slate-400';
+    document.getElementById("alloc-result").classList.remove("hidden");
+    document.getElementById("alloc-result").innerHTML=`
+      <div class="flex justify-between"><span class="text-slate-500">State</span><span class="font-mono font-bold text-xs">${d.state_key}</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Traffic Class</span><span class="font-bold">${d.traffic_class}</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Util Bucket</span><span class="font-bold">${d.util_bucket}</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">RL Action</span><span class="font-bold px-2 py-0.5 rounded text-xs ${rlCls}">${d.action}</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Allocated</span><span class="font-bold text-emerald-400">${d.allocated_mbps} Mbps</span></div>
+      <div class="flex justify-between"><span class="text-slate-500">Confidence</span><span class="font-bold">${(d.confidence*100).toFixed(1)}%</span></div>
+      <p class="text-xs text-slate-400 pt-1">${d.reason}</p>`;
+    toast("RL decision retrieved","success");
+  }catch(e){toast(e.message,"error");}
+  btn.disabled=false;btn.textContent='Get RL Decision';
+}
+
+async function loadRewardHistory(){
+  try{
+    const r=await fetch(`${API}/rl/history`);
+    const d=await r.json();
+    if(!d.reward_history||!d.reward_history.length){toast("No RL reward history yet. Train the RL agent first.","info");return;}
+    const hist=d.moving_avg||d.reward_history;
+    const max=Math.max(...hist.map(Math.abs),1);
+    const container=document.getElementById("reward-chart");
+    container.innerHTML=hist.slice(-50).map((v,i)=>{
+      const h=Math.round(Math.abs(v)/max*100);
+      const color=v>=0?"bg-emerald-500":"bg-rose-400";
+      return `<div class="flex-1 ${color} rounded-t bar-anim" style="--bh:${h}%;height:${h}%;animation-delay:${i*0.02}s"></div>`;
+    }).join("");
+    toast("Reward history loaded","success");
+  }catch(e){toast(e.message,"error");}
+}
+
+checkHealth();
+setInterval(checkHealth,10000);
+window.addEventListener("resize",drawChart);
+</script>
+</body>
+</html>

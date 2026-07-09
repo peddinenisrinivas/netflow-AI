@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width,initial-scale=1.0" name="viewport"/>
+<title>Model Evaluation | NetFlow AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>tailwind.config={darkMode:"class",theme:{extend:{colors:{"primary":"#259df4","background-light":"#f5f7f8","background-dark":"#101a22"},fontFamily:{"display":["Space Grotesk"]}}}}</script>
+<style>
+body{font-family:'Space Grotesk',sans-serif}
+.custom-scrollbar::-webkit-scrollbar{width:4px}.custom-scrollbar::-webkit-scrollbar-thumb{background:#334155;border-radius:10px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}.fade-in{animation:fadeIn .35s ease both}
+.card-hover{transition:transform .18s,box-shadow .18s}.card-hover:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(37,157,244,.12)}
+.btn-p{transition:background .15s,transform .1s,box-shadow .15s}.btn-p:hover{box-shadow:0 4px 16px rgba(37,157,244,.3)}.btn-p:active{transform:scale(.97)}.btn-p:disabled{opacity:.45;pointer-events:none}
+@keyframes barSlide{from{width:0}to{width:var(--bw)}}.bar-slide{animation:barSlide .8s cubic-bezier(.4,0,.2,1) both}
+</style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
+<div class="flex h-screen overflow-hidden">
+
+<aside class="w-64 border-r border-slate-200 dark:border-slate-800 flex flex-col flex-shrink-0">
+  <div class="p-6">
+    <div class="flex items-center gap-3 mb-8">
+      <div class="p-2 bg-primary rounded-lg text-white"><span class="material-symbols-outlined">hub</span></div>
+      <div><h1 class="text-lg font-bold leading-none">NetFlow AI</h1><p class="text-xs text-slate-500">Bandwidth Optimizer</p></div>
+    </div>
+    <nav class="space-y-1">
+      <a href="dashboard.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">dashboard</span><span>Dashboard</span></a>
+      <a href="DataIngestion.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">upload_file</span><span>Data Ingestion</span></a>
+      <a href="Model_training.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">model_training</span><span>Model Training</span></a>
+      <a href="ModelEvaluation.html" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20 border-l-4 border-primary text-primary font-semibold"><span class="material-symbols-outlined">analytics</span><span>Evaluation</span></a>
+      <a href="BandwidthPrediction.html" class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"><span class="material-symbols-outlined">monitoring</span><span>Predictions</span></a>
+    </nav>
+  </div>
+  <div class="mt-auto p-6 border-t border-slate-200 dark:border-slate-800">
+    <div class="flex items-center gap-2 px-3 py-2 text-xs font-bold">
+      <span class="w-2 h-2 rounded-full bg-slate-400" id="status-dot"></span>
+      <span id="status-text" class="text-slate-400">Checking...</span>
+    </div>
+  </div>
+</aside>
+
+<main class="flex-1 overflow-y-auto custom-scrollbar">
+  <header class="sticky top-0 z-10 flex items-center justify-between px-8 py-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+    <div>
+      <h2 class="text-2xl font-bold">Model Evaluation</h2>
+      <p class="text-sm text-slate-500">Traffic State Classifier · Bandwidth RL Agent</p>
+    </div>
+    <div class="flex gap-3">
+      <button id="btn-run-eval" onclick="runEvaluation()" class="btn-p flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-primary text-white">
+        <span class="material-symbols-outlined text-sm">play_arrow</span> Run Evaluation
+      </button>
+      <button id="btn-feat-imp" onclick="loadFeatureImportance()" class="btn-p flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+        <span class="material-symbols-outlined text-sm">bar_chart</span> Feature Importance
+      </button>
+    </div>
+  </header>
+
+  <div id="toast" class="hidden fixed top-6 right-6 z-50 px-5 py-3 rounded-xl text-white text-sm font-semibold shadow-xl flex items-center fade-in"></div>
+
+  <div class="p-8 max-w-7xl mx-auto space-y-8">
+
+    <!-- Run Controls -->
+    <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex items-center gap-6 fade-in">
+      <select id="eval-file" class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm">
+        <option value="">Use synthetic test data</option>
+      </select>
+      <button id="btn-eval-2" onclick="runEvaluation()" class="btn-p bg-primary text-white font-bold px-5 py-2 rounded-lg">Evaluate Model</button>
+      <div id="eval-spinner" class="hidden flex items-center gap-2 text-sm text-primary">
+        <span class="material-symbols-outlined animate-spin text-sm">refresh</span> Evaluating...
+      </div>
+    </div>
+
+    <!-- Summary Metrics with animated rings -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 fade-in" style="animation-delay:.08s">
+      <div class="card-hover p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col items-center">
+        <svg width="80" height="80" viewBox="0 0 80 80" class="mb-2">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(37,157,244,.15)" stroke-width="7"/>
+          <circle id="ring-precision" cx="40" cy="40" r="34" fill="none" stroke="#259df4" stroke-width="7" stroke-linecap="round" stroke-dasharray="214" stroke-dashoffset="214" transform="rotate(-90 40 40)" style="transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1)"/>
+          <text x="40" y="45" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="currentColor" id="m-precision">—</text>
+        </svg>
+        <p class="text-sm font-bold">Precision</p>
+        <div class="mt-2 w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full"><div id="bar-precision" class="bg-primary h-full rounded-full bar-slide" style="--bw:0%;width:0%"></div></div>
+      </div>
+      <div class="card-hover p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col items-center">
+        <svg width="80" height="80" viewBox="0 0 80 80" class="mb-2">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(37,157,244,.1)" stroke-width="7"/>
+          <circle id="ring-recall" cx="40" cy="40" r="34" fill="none" stroke="rgba(37,157,244,.75)" stroke-width="7" stroke-linecap="round" stroke-dasharray="214" stroke-dashoffset="214" transform="rotate(-90 40 40)" style="transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1)"/>
+          <text x="40" y="45" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="currentColor" id="m-recall">—</text>
+        </svg>
+        <p class="text-sm font-bold">Recall</p>
+        <div class="mt-2 w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full"><div id="bar-recall" class="bg-primary/75 h-full rounded-full bar-slide" style="--bw:0%;width:0%"></div></div>
+      </div>
+      <div class="card-hover p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col items-center">
+        <svg width="80" height="80" viewBox="0 0 80 80" class="mb-2">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(37,157,244,.08)" stroke-width="7"/>
+          <circle id="ring-f1" cx="40" cy="40" r="34" fill="none" stroke="rgba(37,157,244,.5)" stroke-width="7" stroke-linecap="round" stroke-dasharray="214" stroke-dashoffset="214" transform="rotate(-90 40 40)" style="transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1)"/>
+          <text x="40" y="45" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="currentColor" id="m-f1">—</text>
+        </svg>
+        <p class="text-sm font-bold">F1-Score</p>
+        <div class="mt-2 w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full"><div id="bar-f1" class="bg-primary/50 h-full rounded-full bar-slide" style="--bw:0%;width:0%"></div></div>
+      </div>
+      <div class="card-hover p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 flex flex-col items-center">
+        <svg width="80" height="80" viewBox="0 0 80 80" class="mb-2">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(16,185,129,.12)" stroke-width="7"/>
+          <circle id="ring-accuracy" cx="40" cy="40" r="34" fill="none" stroke="#10b981" stroke-width="7" stroke-linecap="round" stroke-dasharray="214" stroke-dashoffset="214" transform="rotate(-90 40 40)" style="transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1)"/>
+          <text x="40" y="45" text-anchor="middle" font-family="Space Grotesk" font-weight="700" font-size="13" fill="currentColor" id="m-accuracy">—</text>
+        </svg>
+        <p class="text-sm font-bold">Accuracy</p>
+        <div class="mt-2 w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full"><div id="bar-accuracy" class="bg-emerald-500 h-full rounded-full bar-slide" style="--bw:0%;width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <!-- Confusion Matrix -->
+      <div class="xl:col-span-2 card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in" style="animation-delay:.14s">
+        <h3 class="font-bold text-lg mb-4">Confusion Matrix</h3>
+        <div id="confusion-matrix" class="overflow-x-auto">
+          <p class="text-slate-400 text-sm py-8 text-center">Run evaluation to see the confusion matrix.</p>
+        </div>
+      </div>
+
+      <!-- RL Summary -->
+      <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in" style="animation-delay:.2s">
+        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><span class="material-symbols-outlined text-emerald-400">smart_toy</span> RL Agent Summary</h3>
+        <div id="rl-summary" class="space-y-3">
+          <p class="text-slate-400 text-sm">Train the RL agent to see its summary.</p>
+        </div>
+        <button onclick="loadRLSummary()" class="btn-p mt-4 w-full py-2 text-sm font-semibold border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Refresh RL Summary</button>
+      </div>
+    </div>
+
+    <!-- Classification Report -->
+    <div class="card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in" style="animation-delay:.26s">
+      <h3 class="font-bold text-lg mb-4">Classification Report</h3>
+      <pre id="class-report" class="text-xs text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg p-4 overflow-x-auto font-mono">Run evaluation to see the full report.</pre>
+    </div>
+
+    <!-- Feature Importance -->
+    <div id="feat-imp-section" class="hidden card-hover bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 fade-in">
+      <h3 class="font-bold text-lg mb-4">Feature Importance (Top 15)</h3>
+      <div id="feat-imp-chart" class="space-y-2"></div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<script>
+const API="http://localhost:8000/api";
+
+// sessionStorage persistence
+const SS={
+  get:k=>{try{return JSON.parse(sessionStorage.getItem(k))}catch{return null}},
+  set:(k,v)=>{try{sessionStorage.setItem(k,JSON.stringify(v))}catch{}}
+};
+
+function restoreAll(){
+  const e=SS.get('eval_results');
+  if(e) applyResults(e);
+}
+
+const ICONS={info:'ℹ️',success:'✅',error:'❌',warning:'⚠️'};
+function toast(msg,type="info"){
+  const t=document.getElementById("toast"),c={info:"bg-primary",success:"bg-emerald-600",error:"bg-rose-600",warning:"bg-amber-500"};
+  t.className=`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl text-white text-sm font-semibold shadow-xl flex items-center fade-in ${c[type]||c.info}`;
+  t.innerHTML=`<span style="margin-right:8px">${ICONS[type]||'ℹ️'}</span>${msg}`;
+  t.classList.remove("hidden");setTimeout(()=>t.classList.add("hidden"),3500);
+}
+
+async function checkHealth(){
+  try{
+    const r=await fetch(`${API}/health`);
+    if(r.ok){
+      document.getElementById("status-dot").className="w-2 h-2 rounded-full bg-emerald-400";
+      document.getElementById("status-text").textContent="API Online";
+      document.getElementById("status-text").className="text-emerald-400 text-xs font-bold";
+      loadFiles();loadExistingResults();loadRLSummary();
+    }
+  }catch{
+    document.getElementById("status-dot").className="w-2 h-2 rounded-full bg-rose-500";
+    document.getElementById("status-text").textContent="API Offline";
+    document.getElementById("status-text").className="text-rose-400 text-xs font-bold";
+  }
+}
+
+async function loadFiles(){
+  try{const r=await fetch(`${API}/ingestion/files`),files=await r.json();
+    const sel=document.getElementById("eval-file");
+    sel.innerHTML='<option value="">Use synthetic test data</option>';
+    files.forEach(f=>sel.innerHTML+=`<option value="${f.id}">${f.filename}</option>`);
+  }catch{}
+}
+
+async function loadExistingResults(){
+  // first try sessionStorage, then API
+  const saved=SS.get('eval_results');
+  if(saved){applyResults(saved);return;}
+  try{
+    const r=await fetch(`${API}/evaluation/results`);
+    if(r.ok){const d=await r.json();applyResults(d);SS.set('eval_results',d);}
+  }catch{}
+}
+
+async function runEvaluation(){
+  const btns=[document.getElementById('btn-run-eval'),document.getElementById('btn-eval-2')];
+  btns.forEach(b=>{b.disabled=true;b.textContent='Evaluating...';});
+  document.getElementById("eval-spinner").classList.remove("hidden");
+  const fileId=document.getElementById("eval-file").value;
+  try{
+    const url=fileId?`${API}/evaluation/run?file_id=${encodeURIComponent(fileId)}`:`${API}/evaluation/run`;
+    const r=await fetch(url,{method:"POST"});
+    if(!r.ok)throw new Error((await r.json()).detail);
+    const d=await r.json();
+    applyResults(d);
+    SS.set('eval_results',d);
+    toast("Evaluation complete!","success");
+  }catch(e){toast(e.message,"error");}
+  document.getElementById("eval-spinner").classList.add("hidden");
+  btns.forEach(b=>{b.disabled=false;});
+  document.getElementById('btn-run-eval').innerHTML='<span class="material-symbols-outlined text-sm">play_arrow</span> Run Evaluation';
+  document.getElementById('btn-eval-2').textContent='Evaluate Model';
+}
+
+function animateRing(id,val){
+  const C=214;
+  const v=parseFloat(val)||0;
+  // val may be like "0.95" or "95%" — normalise
+  const frac=v>1?v/100:v;
+  setTimeout(()=>{document.getElementById(id).style.strokeDashoffset=C-(C*frac);},80);
+}
+
+function applyResults(d){
+  const pct=v=>{const n=parseFloat(v);return(n>1?n:n*100).toFixed(0)+'%';};
+  document.getElementById("m-precision").textContent=d.precision;
+  document.getElementById("m-recall").textContent=d.recall;
+  document.getElementById("m-f1").textContent=d.f1_score;
+  document.getElementById("m-accuracy").textContent=typeof d.accuracy==='number'?pct(d.accuracy):d.accuracy;
+
+  const toFrac=v=>{const n=parseFloat(v);return n>1?n/100:n;};
+  animateRing('ring-precision',toFrac(d.precision));
+  animateRing('ring-recall',toFrac(d.recall));
+  animateRing('ring-f1',toFrac(d.f1_score));
+  animateRing('ring-accuracy',toFrac(d.accuracy));
+
+  const setPct=id=>v=>{const el=document.getElementById(id);el.style.setProperty('--bw',pct(v));el.style.width=pct(v);};
+  setPct('bar-precision')(d.precision);
+  setPct('bar-recall')(d.recall);
+  setPct('bar-f1')(d.f1_score);
+  setPct('bar-accuracy')(d.accuracy);
+
+  document.getElementById("class-report").textContent=d.report||"No report.";
+  buildConfusionMatrix(d.classes||[],d.confusion_matrix||[]);
+}
+
+function buildConfusionMatrix(classes,cm){
+  if(!cm||!cm.length) return;
+  const maxVal=Math.max(...cm.flat(),1);
+  let html=`<table class="w-full text-center text-sm"><thead>
+    <tr><th class="p-2"></th><th class="p-2 text-xs text-slate-500 font-bold uppercase" colspan="${classes.length}">Predicted</th></tr>
+    <tr class="text-xs text-slate-500"><th class="p-2 text-left">Actual</th>${classes.map(c=>`<th class="p-2">${c}</th>`).join("")}</tr></thead><tbody>`;
+  cm.forEach((row,i)=>{
+    html+=`<tr><td class="p-3 text-xs font-bold text-slate-500 text-left">${classes[i]}</td>`;
+    row.forEach((v,j)=>{
+      const bold=i===j?"font-bold border-2 border-primary/40":"";
+      html+=`<td class="p-3 rounded-lg ${bold} transition-all" style="background:rgba(37,157,244,${v/maxVal*0.6})">${v}</td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</tbody></table><p class="mt-3 text-xs text-slate-500">Diagonal = correct predictions. Higher color density = higher count.</p>`;
+  document.getElementById("confusion-matrix").innerHTML=html;
+}
+
+const AC_COLORS={increase:"text-emerald-400",maintain:"text-primary",decrease:"text-amber-400",throttle:"text-rose-400"};
+
+async function loadRLSummary(){
+  try{
+    const r=await fetch(`${API}/rl/summary`);
+    const d=await r.json();
+    const el=document.getElementById("rl-summary");
+    if(!d.is_trained){el.innerHTML='<p class="text-slate-400 text-sm">RL agent not yet trained. Go to Model Training.</p>';return;}
+    const dist=Object.entries(d.policy_action_dist).map(([a,n])=>`<span class="font-bold ${AC_COLORS[a]||''}">${a}:${n}</span>`).join(" · ");
+    el.innerHTML=`
+      <div class="grid grid-cols-2 gap-3">
+        <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg"><p class="text-xs text-slate-400 uppercase">Status</p><p class="font-bold text-emerald-400">✓ Trained</p></div>
+        <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg"><p class="text-xs text-slate-400 uppercase">States</p><p class="font-bold">${d.states_learned}</p></div>
+        <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg"><p class="text-xs text-slate-400 uppercase">Episodes</p><p class="font-bold">${d.episodes_completed}</p></div>
+        <div class="card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg"><p class="text-xs text-slate-400 uppercase">Avg Reward</p><p class="font-bold">${d.avg_reward_last_50}</p></div>
+        <div class="col-span-2 card-hover bg-slate-50 dark:bg-slate-800 p-3 rounded-lg"><p class="text-xs text-slate-400 uppercase mb-1">Policy Actions</p><p class="text-xs">${dist}</p></div>
+      </div>`;
+  }catch{}
+}
+
+async function loadFeatureImportance(){
+  const btn=document.getElementById('btn-feat-imp');
+  btn.disabled=true;btn.innerHTML='<span class="material-symbols-outlined text-sm">refresh</span> Loading...';
+  try{
+    const r=await fetch(`${API}/evaluation/feature-importance`);
+    if(!r.ok){toast("Feature importance not available for this model type","warning");return;}
+    const d=await r.json();
+    const section=document.getElementById("feat-imp-section");section.classList.remove("hidden");
+    const maxImp=d.features[0].importance;
+    document.getElementById("feat-imp-chart").innerHTML=d.features.slice(0,15).map((f,i)=>`
+      <div class="flex items-center gap-3 fade-in" style="animation-delay:${i*0.04}s">
+        <span class="text-xs font-mono text-slate-400 w-40 text-right truncate">${f.name}</span>
+        <div class="flex-1 h-5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+          <div class="h-full bg-primary rounded-full bar-slide" style="--bw:${Math.round(f.importance/maxImp*100)}%;width:0%"></div>
+        </div>
+        <span class="text-xs font-bold text-primary w-16">${(f.importance*100).toFixed(2)}%</span>
+      </div>`).join("");
+    section.scrollIntoView({behavior:"smooth"});
+    toast("Feature importance loaded","success");
+  }catch(e){toast(e.message,"error");}
+  btn.disabled=false;btn.innerHTML='<span class="material-symbols-outlined text-sm">bar_chart</span> Feature Importance';
+}
+
+checkHealth();
+setInterval(checkHealth,10000);
+restoreAll();
+</script>
+</body>
+</html>
