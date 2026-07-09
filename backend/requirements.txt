@@ -1,0 +1,22 @@
+# NetFlow AI – Intelligent Bandwidth Allocation using RL
+# Backend Dependencies
+# ─────────────────────────────────────────────────────
+# Web framework
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+
+# Data validation
+pydantic==2.7.1
+
+# ML (no deep learning)
+scikit-learn==1.5.0
+numpy==1.26.4
+pandas==2.2.2
+joblib==1.4.2
+
+# Class imbalance handling (v2 — SMOTE)
+imbalanced-learn==0.12.3
+
+# PCAP parsing (optional — falls back to synthetic data without it)
+scapy==2.5.0
